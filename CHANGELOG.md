@@ -20,7 +20,7 @@ The plugin can also be configured to handle additional `custom` resource types.
 
 All resource types are stored on the local filesystem of the Signal K server with each type within its own folder.
 
-The parent folder under which resources are stored can be configured from within the plugin config screen. The default path is `.signalk/resources`.
+The parent folder under which resources are stored can be configured from within the plugin config screen. The default path is `~/.signalk/resources`.
 ```
 .signalk
     /resources
