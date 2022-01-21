@@ -4,184 +4,184 @@ import {
   computeDestinationPoint,
   getCenterOfBounds,
   isPointInPolygon
-} from "geolib";
-import ngeohash from "ngeohash";
+} from 'geolib'
+import ngeohash from 'ngeohash'
 
 export class Utils {
-  uuidPrefix = "urn:mrn:signalk:uuid:";
+  uuidPrefix = 'urn:mrn:signalk:uuid:'
 
   // ** check geometry is in bounds
   inBounds(val: any, type: string, polygon: number[]): boolean {
-    let ok = false;
+    let ok = false
     switch (type) {
-      case "notes":
-      case "waypoints":
+      case 'notes':
+      case 'waypoints':
         if (val.position) {
-          ok = isPointInPolygon(val.position, polygon);
+          ok = isPointInPolygon(val.position, polygon)
         }
         if (val.geohash) {
-          const bar = ngeohash.decode_bbox(val.geohash);
+          const bar = ngeohash.decode_bbox(val.geohash)
           const bounds = this.toPolygon(
             `${bar[1]},${bar[0]}, ${bar[3]}, ${bar[2]}`
-          );
-          const center = getCenterOfBounds(bounds);
-          ok = isPointInPolygon(center, polygon);
+          )
+          const center = getCenterOfBounds(bounds)
+          ok = isPointInPolygon(center, polygon)
         }
-        break;
-      case "routes":
+        break
+      case 'routes':
         if (val.feature.geometry.coordinates) {
           val.feature.geometry.coordinates.forEach((pt: any) => {
-            ok = ok || isPointInPolygon(pt, polygon);
-          });
+            ok = ok || isPointInPolygon(pt, polygon)
+          })
         }
-        break;
-      case "regions":
+        break
+      case 'regions':
         if (
           val.feature.geometry.coordinates &&
           val.feature.geometry.coordinates.length > 0
         ) {
-          if (val.feature.geometry.type == "Polygon") {
+          if (val.feature.geometry.type == 'Polygon') {
             val.feature.geometry.coordinates.forEach((ls: any) => {
               ls.forEach((pt: any) => {
-                ok = ok || isPointInPolygon(pt, polygon);
-              });
-            });
-          } else if (val.feature.geometry.type == "MultiPolygon") {
+                ok = ok || isPointInPolygon(pt, polygon)
+              })
+            })
+          } else if (val.feature.geometry.type == 'MultiPolygon') {
             val.feature.geometry.coordinates.forEach((polygon: any) => {
               polygon.forEach((ls: any) => {
                 ls.forEach((pt: any) => {
-                  ok = ok || isPointInPolygon(pt, polygon);
-                });
-              });
-            });
+                  ok = ok || isPointInPolygon(pt, polygon)
+                })
+              })
+            })
           }
         }
-        break;
+        break
     }
-    return ok;
+    return ok
   }
 
   /** Apply filters to Resource entry
    * returns: true if entry should be included in results **/
   passFilter(res: any, type: string, params: any) {
-    let ok = true;
+    let ok = true
     if (params.region) {
       // ** check is attached to region
       // console.log(`check region: ${params.region}`);
-      if (typeof res.region === "undefined") {
-        ok = ok && false;
+      if (typeof res.region === 'undefined') {
+        ok = ok && false
       } else {
         // deconstruct resource region value
-        const ha = res.region.split("/");
+        const ha = res.region.split('/')
         const hType: string =
           ha.length === 1
-            ? "regions"
+            ? 'regions'
             : ha.length > 2
             ? ha[ha.length - 2]
-            : "regions";
-        const hId = ha.length === 1 ? ha[0] : ha[ha.length - 1];
+            : 'regions'
+        const hId = ha.length === 1 ? ha[0] : ha[ha.length - 1]
 
         // deconstruct param.region value
-        const pa = params.region.split("/");
+        const pa = params.region.split('/')
         const pType: string =
           pa.length === 1
-            ? "regions"
+            ? 'regions'
             : pa.length > 2
             ? pa[pa.length - 2]
-            : "regions";
-        const pId = pa.length === 1 ? pa[0] : pa[pa.length - 1];
+            : 'regions'
+        const pId = pa.length === 1 ? pa[0] : pa[pa.length - 1]
 
-        ok = ok && hType === pType && hId === pId;
+        ok = ok && hType === pType && hId === pId
       }
     }
     if (params.group) {
       // ** check is attached to group
       // console.log(`check group: ${params.group}`);
-      if (typeof res.group === "undefined") {
-        ok = ok && false;
+      if (typeof res.group === 'undefined') {
+        ok = ok && false
       } else {
-        ok = ok && res.group == params.group;
+        ok = ok && res.group == params.group
       }
     }
     if (params.geobounds) {
       // ** check is within bounds
-      ok = ok && this.inBounds(res, type, params.geobounds);
+      ok = ok && this.inBounds(res, type, params.geobounds)
     }
-    return ok;
+    return ok
   }
 
   // ** process query parameters
   processParameters(params: any) {
-    if (typeof params.limit !== "undefined") {
+    if (typeof params.limit !== 'undefined') {
       if (isNaN(params.limit)) {
-        const s = `Error: max record count specified is not a number! (${params.limit})`;
-        console.log(`*** ${s} ***`);
+        const s = `Error: max record count specified is not a number! (${params.limit})`
+        console.log(`*** ${s} ***`)
         return {
           error: true,
           message: s,
-          source: "resources"
-        };
+          source: 'resources'
+        }
       } else {
-        params.limit = parseInt(params.limit);
+        params.limit = parseInt(params.limit)
       }
     }
 
-    if (typeof params.bbox !== "undefined") {
+    if (typeof params.bbox !== 'undefined') {
       // ** generate geobounds polygon from bbox
-      params.geobounds = this.toPolygon(params.bbox);
+      params.geobounds = this.toPolygon(params.bbox)
       if (params.geobounds.length !== 5) {
-        params.geobounds = null;
+        params.geobounds = null
         return {
           error: true,
           message: `Error: Bounding box contains invalid coordinate value (${params.bbox})`,
-          source: "resources"
-        };
+          source: 'resources'
+        }
       }
-    } else if (typeof params.distance !== "undefined" && params.position) {
+    } else if (typeof params.distance !== 'undefined' && params.position) {
       if (isNaN(params.distance)) {
-        const s = `Error: Distance specified is not a number! (${params.distance})`;
-        console.log(`*** ${s} ***`);
+        const s = `Error: Distance specified is not a number! (${params.distance})`
+        console.log(`*** ${s} ***`)
         return {
           error: true,
           message: s,
-          source: "resources"
-        };
+          source: 'resources'
+        }
       }
-      const sw = computeDestinationPoint(params.position, params.distance, 225);
-      const ne = computeDestinationPoint(params.position, params.distance, 45);
+      const sw = computeDestinationPoint(params.position, params.distance, 225)
+      const ne = computeDestinationPoint(params.position, params.distance, 45)
       params.geobounds = this.toPolygon(
         `${sw.longitude},${sw.latitude}, ${ne.longitude}, ${ne.latitude}`
-      );
+      )
     }
-    return params;
+    return params
   }
 
   // ** convert bbox  string to array of points (polygon) **
   toPolygon(bbox: string) {
-    const polygon = [];
+    const polygon = []
     const b = bbox
-      .split(",")
+      .split(',')
       .map((i: any) => {
         if (!isNaN(i)) {
-          return parseFloat(i);
+          return parseFloat(i)
         }
       })
       .filter((i: any) => {
         if (i) {
-          return i;
+          return i
         }
-      });
+      })
     if (b.length == 4) {
-      polygon.push([b[0], b[1]]);
-      polygon.push([b[0], b[3]]);
-      polygon.push([b[2], b[3]]);
-      polygon.push([b[2], b[1]]);
-      polygon.push([b[0], b[1]]);
+      polygon.push([b[0], b[1]])
+      polygon.push([b[0], b[3]])
+      polygon.push([b[2], b[3]])
+      polygon.push([b[2], b[1]])
+      polygon.push([b[0], b[1]])
     } else {
       console.log(
         `*** Error: Bounding box contains invalid coordinate value (${bbox}) ***`
-      );
+      )
     }
-    return polygon;
+    return polygon
   }
 }

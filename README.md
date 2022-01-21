@@ -2,7 +2,7 @@
 
 __Signal K server plugin that implements the Resource Provider API__.
 
-_Note: This plugin should ONLY be installed on Signal K server version 1.41.0 or later that implements the `Resources API`!_
+_Note: This plugin should ONLY be installed on a Signal K server that implements the `Resources API`!_
 
 ---
 
