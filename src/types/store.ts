@@ -7,8 +7,8 @@ export interface IResourceStore {
     type: string,
     item: any,
     params: { [key: string]: any }
-  ) => Promise<any>
-  setResource: (r: StoreRequestParams) => Promise<boolean>
+  ) => Promise<{ [key: string]: any }>
+  setResource: (r: StoreRequestParams) => Promise<void>
 }
 
 export interface StoreRequestParams {

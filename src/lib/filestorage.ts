@@ -96,7 +96,7 @@ export class FileStore implements IResourceStore {
     type: string,
     item: any = null,
     params: any = {}
-  ): Promise<any> {
+  ): Promise<{ [key: string]: any }> {
     let result: any = {}
     // ** parse supplied params
     params = this.utils.processParameters(params)
@@ -155,7 +155,7 @@ export class FileStore implements IResourceStore {
   }
 
   // ** save / delete (r.value==null) resource file
-  async setResource(r: StoreRequestParams): Promise<boolean> {
+  async setResource(r: StoreRequestParams): Promise<void> {
     const fname = r.id.split(':').slice(-1)[0]
     const p = path.join(this.resources[r.type].path, fname)
 
@@ -164,7 +164,7 @@ export class FileStore implements IResourceStore {
       try {
         await unlink(p)
         console.log(`** DELETED: ${r.type} entry ${fname} **`)
-        return true
+        return
       } catch (error) {
         console.error('Error deleting resource!');
         (error as Error).message = 'Error deleting resource!'
@@ -175,7 +175,7 @@ export class FileStore implements IResourceStore {
       try {
         await writeFile(p, JSON.stringify(r.value))
         console.log(`** ${r.type} written to ${fname} **`)
-        return true
+        return
       } catch (error) {
         console.error('Error updating resource!')
         throw error
