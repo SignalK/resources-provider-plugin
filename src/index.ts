@@ -58,6 +58,7 @@ interface ResourceProviderApp extends PluginServerApp {
   savePluginOptions: (options:any, callback: () => void) => void
   config: { configPath: string }
   resourcesApi: ResourcesApi
+  registerResourceProvider: (resourceProvider: ResourceProvider) => void
 }
 
 const CONFIG_SCHEMA = {
@@ -247,7 +248,7 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
         })
 
       // ** register resource provider **
-      server.resourcesApi.register(plugin.id, plugin.resourceProvider)
+      server.registerResourceProvider(plugin.resourceProvider)
     } catch (error) {
       const msg = `Started with errors!`
       server.setPluginError(msg)
@@ -257,8 +258,6 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
 
   const doShutdown = () => {
     server.debug(`${plugin.name} stopping.......`)
-    server.debug('** Un-registering Resource Provider(s) **')
-    server.resourcesApi.unRegister(plugin.id)
     server.debug('** Un-registering Update Handler(s) **')
     subscriptions.forEach(b => b())
     subscriptions = []
@@ -281,7 +280,7 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
     resType: string,
     id: string,
     params?: any
-  ): Promise<any> => {
+  ): Promise<{ [key: string]: any }> => {
     // append vessel position to params
     params = params ?? {}
     params.position = getVesselPosition()
@@ -305,7 +304,7 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
     resType: string,
     id: string,
     value: any
-  ): Promise<boolean | Error> => {
+  ): Promise<void> => {
     server.debug(`*** apiSetResource:  ${resType}, ${id}, ${value}`)
     const r: StoreRequestParams = {
       type: resType,
@@ -313,7 +312,8 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
       value
     }
     try {
-      return await db.setResource(r)
+      await db.setResource(r)
+      return
     } catch (error) {
       throw error
     }
