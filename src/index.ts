@@ -1,7 +1,7 @@
 import {
   Plugin,
   PluginServerApp
-  // ResourceTypes, ResourceProvider, ResourcesApi
+  // ResourceType, ResourceProvider
 } from '@signalk/server-api'
 
 // ******  duplicate of '@signalk/server-api' until new version published ****
@@ -11,29 +11,21 @@ type SignalKResourceType =
   | 'notes'
   | 'regions'
   | 'charts'
-export type ResourceTypes = SignalKResourceType[] | string[]
-
-export interface ResourceProviderMethods {
-  pluginId?: string
-  listResources: (type: string, query: { [key: string]: any }) => Promise<any>
-  getResource: (type: string, id: string) => Promise<any>
-  setResource: (
-    type: string,
-    id: string,
-    value: { [key: string]: any }
-  ) => Promise<any>
-  deleteResource: (type: string, id: string) => Promise<any>
-}
+export type ResourceType = SignalKResourceType | string
 
 export interface ResourceProvider {
-  types: ResourceTypes
+  type: ResourceType
   methods: ResourceProviderMethods
 }
 
-export interface ResourcesApi {
-  register: (pluginId: string, provider: ResourceProvider) => void
-  unRegister: (pluginId: string) => void
-  getResource: (resType: SignalKResourceType, resId: string) => any
+export interface ResourceProviderMethods {
+  listResources: (query: { [key: string]: any }) => Promise<any>
+  getResource: (id: string) => Promise<any>
+  setResource: (
+    id: string,
+    value: { [key: string]: any }
+  ) => Promise<any>
+  deleteResource: (id: string) => Promise<any>
 }
 
 // ***********************************************
@@ -42,9 +34,6 @@ import { FileStore } from './lib/filestorage'
 import { Utils } from './lib/utils'
 import { StoreRequestParams } from './types'
 
-interface ResourceProviderPlugin extends Plugin {
-  resourceProvider: ResourceProvider
-}
 
 interface ResourceProviderApp extends PluginServerApp {
   statusMessage?: () => string
@@ -57,7 +46,6 @@ interface ResourceProviderApp extends PluginServerApp {
   getSelfPath: (path: string) => void
   savePluginOptions: (options:any, callback: () => void) => void
   config: { configPath: string }
-  resourcesApi: ResourcesApi
   registerResourceProvider: (resourceProvider: ResourceProvider) => void
 }
 
@@ -141,11 +129,11 @@ const CONFIG_UISCHEMA = {
   }
 }
 
-module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
+module.exports = (server: ResourceProviderApp): Plugin => {
   let subscriptions: any[] = [] // stream subscriptions
   const utils: Utils = new Utils()
 
-  const plugin: ResourceProviderPlugin = {
+  const plugin: Plugin = {
     id: 'resources-provider',
     name: 'Resources Provider',
     schema: () => CONFIG_SCHEMA,
@@ -155,23 +143,6 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
     },
     stop: () => {
       doShutdown()
-    },
-    resourceProvider: {
-      types: [],
-      methods: {
-        listResources: (type: string, params: object): any => {
-          return apiGetResource(type, '', params)
-        },
-        getResource: (type: string, id: string) => {
-          return apiGetResource(type, id)
-        },
-        setResource: (type: string, id: string, value: any) => {
-          return apiSetResource(type, id, value)
-        },
-        deleteResource: (type: string, id: string) => {
-          return apiSetResource(type, id, null)
-        }
-      }
     }
   }
 
@@ -188,9 +159,6 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
     path: './resources'
   }
 
-  let apiProviderFor: string[]
-  let customTypes: string[]
-
   const doStartup = (options: any) => {
     try {
       server.debug(`${plugin.name} starting.......`)
@@ -205,22 +173,21 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
       server.debug(`Applied config: ${JSON.stringify(config)}`)
 
       // compile list of enabled resource types
-      apiProviderFor = []
-      for (const i in config.standard) {
-        if (config.standard[i]) {
-          apiProviderFor.push(i as string)
+      let apiProviderFor: string[] = []
+      Object.entries(config.standard).forEach( i => {
+        if (i[1]) {
+          apiProviderFor.push(i[0])
         }
-      }
-      customTypes = []
+      })
+      
       if (config.custom && Array.isArray(config.custom)) {
-        customTypes = config.custom.map((i: any) => {
+        const customTypes = config.custom.map((i: any) => {
           return i.name
         })
+        apiProviderFor = apiProviderFor.concat(customTypes)
       }
-      plugin.resourceProvider.types = apiProviderFor.concat(customTypes)
-
-      server.debug(`** Enabled STANDARD resources: ${JSON.stringify(apiProviderFor)}`)
-      server.debug(`** Enabled CUSTOM resources: ${JSON.stringify(customTypes)}`)
+      
+      server.debug(`** Enabled resource types: ${JSON.stringify(apiProviderFor)}`)
 
       // ** initialise resource storage
       db.init({ settings: config, path: server.config.configPath })
@@ -234,7 +201,8 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
           server.debug(
             `** ${plugin.name} started... ${!res.error ? 'OK' : 'with errors!'}`
           )
-          const msg = `Resource Provider (active): ${plugin.resourceProvider.types.toString()}`
+          const msg = `Resource Provider (active)` //: ${plugin.resourceProvider.types.toString()}`
+
           if (typeof server.setPluginStatus === 'function') {
             server.setPluginStatus(msg)
           } else {
@@ -247,8 +215,9 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
           server.setPluginError(msg)
         })
 
-      // ** register resource provider **
-      server.registerResourceProvider(plugin.resourceProvider)
+      // register as provider for enabled resource types 
+      registerProviders(apiProviderFor)
+
     } catch (error) {
       const msg = `Started with errors!`
       server.setPluginError(msg)
@@ -272,6 +241,30 @@ module.exports = (server: ResourceProviderApp): ResourceProviderPlugin => {
   const getVesselPosition = () => {
     const p: any = server.getSelfPath('navigation.position')
     return p && p.value ? [p.value.longitude, p.value.latitude] : null
+  }
+
+  const registerProviders = (resTypes: string[]) => {
+    resTypes.forEach( resType => {
+      server.registerResourceProvider(  
+        {
+          type: resType,
+          methods: {
+            listResources: (params: object): any => {
+              return apiGetResource(resType, '', params)
+            },
+            getResource: (id: string) => {
+              return apiGetResource(resType, id)
+            },
+            setResource: (id: string, value: any) => {
+              return apiSetResource(resType, id, value)
+            },
+            deleteResource: (id: string) => {
+              return apiSetResource(resType, id, null)
+            }
+          }
+        }
+      )
+    })
   }
 
   // ******* Signal K server Resource Provider interface functions **************
