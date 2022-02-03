@@ -11,6 +11,7 @@ type SignalKResourceType =
   | 'notes'
   | 'regions'
   | 'charts'
+
 export type ResourceType = SignalKResourceType | string
 
 export interface ResourceProvider {
@@ -33,7 +34,6 @@ export interface ResourceProviderMethods {
 import { FileStore } from './lib/filestorage'
 import { Utils } from './lib/utils'
 import { StoreRequestParams } from './types'
-
 
 interface ResourceProviderApp extends PluginServerApp {
   statusMessage?: () => string
@@ -201,8 +201,14 @@ module.exports = (server: ResourceProviderApp): Plugin => {
           server.debug(
             `** ${plugin.name} started... ${!res.error ? 'OK' : 'with errors!'}`
           )
-          const msg = `Resource Provider (active)` //: ${plugin.resourceProvider.types.toString()}`
 
+          // register as provider for enabled resource types 
+          const result = registerProviders(apiProviderFor)
+
+          const msg = result.length !== 0 ?
+            `${result.toString()} not registered!` :
+            `Providing: ${apiProviderFor.toString()}`
+          
           if (typeof server.setPluginStatus === 'function') {
             server.setPluginStatus(msg)
           } else {
@@ -214,10 +220,6 @@ module.exports = (server: ResourceProviderApp): Plugin => {
           const msg = `Initialisation Error! See console for details.`
           server.setPluginError(msg)
         })
-
-      // register as provider for enabled resource types 
-      registerProviders(apiProviderFor)
-
     } catch (error) {
       const msg = `Started with errors!`
       server.setPluginError(msg)
@@ -243,28 +245,34 @@ module.exports = (server: ResourceProviderApp): Plugin => {
     return p && p.value ? [p.value.longitude, p.value.latitude] : null
   }
 
-  const registerProviders = (resTypes: string[]) => {
+  const registerProviders = (resTypes: string[]): string[] => {
+    const failed: string[] = []
     resTypes.forEach( resType => {
-      server.registerResourceProvider(  
-        {
-          type: resType,
-          methods: {
-            listResources: (params: object): any => {
-              return apiGetResource(resType, '', params)
-            },
-            getResource: (id: string) => {
-              return apiGetResource(resType, id)
-            },
-            setResource: (id: string, value: any) => {
-              return apiSetResource(resType, id, value)
-            },
-            deleteResource: (id: string) => {
-              return apiSetResource(resType, id, null)
+      try {
+        server.registerResourceProvider(  
+          {
+            type: resType,
+            methods: {
+              listResources: (params: object): any => {
+                return apiGetResource(resType, '', params)
+              },
+              getResource: (id: string) => {
+                return apiGetResource(resType, id)
+              },
+              setResource: (id: string, value: any) => {
+                return apiSetResource(resType, id, value)
+              },
+              deleteResource: (id: string) => {
+                return apiSetResource(resType, id, null)
+              }
             }
           }
-        }
-      )
+        )
+      } catch(error) {
+        failed.push(resType)
+      }
     })
+    return failed
   }
 
   // ******* Signal K server Resource Provider interface functions **************
