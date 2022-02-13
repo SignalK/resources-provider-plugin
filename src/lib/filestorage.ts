@@ -44,10 +44,7 @@ export class FileStore implements IResourceStore {
     // other resources
     const enabledResTypes: any = {}
     Object.assign(enabledResTypes, config.settings.standard)
-    if (
-      config.settings.custom &&
-      Array.isArray(config.settings.custom)
-    ) {
+    if (config.settings.custom && Array.isArray(config.settings.custom)) {
       config.settings.custom.forEach((i: any) => {
         this.resources[i.name] = {
           path: path.join(this.savePath, `/${i.name}`)
@@ -70,7 +67,7 @@ export class FileStore implements IResourceStore {
   ): Promise<{ error: boolean; message: string }> {
     console.log('** Initialising resource storage **')
     const result = { error: false, message: `` }
-    Object.keys(this.resources).forEach(async (t:string) => {
+    Object.keys(this.resources).forEach(async (t: string) => {
       if (resTypes[t]) {
         try {
           await access(this.resources[t].path, constants.W_OK | constants.R_OK)
@@ -166,8 +163,8 @@ export class FileStore implements IResourceStore {
         console.log(`** DELETED: ${r.type} entry ${fname} **`)
         return
       } catch (error) {
-        console.error('Error deleting resource!');
-        (error as Error).message = 'Error deleting resource!'
+        console.error('Error deleting resource!')
+        ;(error as Error).message = 'Error deleting resource!'
         throw error
       }
     } else {
