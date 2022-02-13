@@ -96,7 +96,7 @@ export class Utils {
     }
     if (params.group) {
       // ** check is attached to group
-      // console.log(`check group: ${params.group}`);
+      // console.error(`check group: ${params.group}`);
       if (typeof res.group === 'undefined') {
         ok = ok && false
       } else {
@@ -115,7 +115,7 @@ export class Utils {
     if (typeof params.limit !== 'undefined') {
       if (isNaN(params.limit)) {
         const s = `Error: max record count specified is not a number! (${params.limit})`
-        console.log(`*** ${s} ***`)
+        console.error(`*** ${s} ***`)
         return {
           error: true,
           message: s,
@@ -140,7 +140,7 @@ export class Utils {
     } else if (typeof params.distance !== 'undefined' && params.position) {
       if (isNaN(params.distance)) {
         const s = `Error: Distance specified is not a number! (${params.distance})`
-        console.log(`*** ${s} ***`)
+        console.error(`*** ${s} ***`)
         return {
           error: true,
           message: s,
@@ -174,7 +174,7 @@ export class Utils {
       polygon.push([b[2], b[1]])
       polygon.push([b[0], b[1]])
     } else {
-      console.log(
+      console.error(
         `*** Error: Bounding box contains invalid coordinate value (${bbox}) ***`
       )
     }

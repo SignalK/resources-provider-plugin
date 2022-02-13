@@ -141,7 +141,7 @@ module.exports = (server: ResourceProviderApp): Plugin => {
     }
   }
 
-  const db: FileStore = new FileStore(plugin.id)
+  const db: FileStore = new FileStore(plugin.id, server.debug)
 
   let config: any = {
     standard: {

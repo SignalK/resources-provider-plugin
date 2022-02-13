@@ -19,7 +19,7 @@ export class FileStore implements IResourceStore {
   resources: any
   pkg: { id: string }
 
-  constructor(pluginId = '') {
+  constructor(pluginId: string, private debug: (s: any) => void) {
     this.utils = new Utils()
     this.savePath = ''
     this.resources = {}
@@ -65,19 +65,19 @@ export class FileStore implements IResourceStore {
   async createSavePaths(
     resTypes: any
   ): Promise<{ error: boolean; message: string }> {
-    console.log('** Initialising resource storage **')
+    this.debug('** Initialising resource storage **')
     const result = { error: false, message: `` }
     Object.keys(this.resources).forEach(async (t: string) => {
       if (resTypes[t]) {
         try {
           await access(this.resources[t].path, constants.W_OK | constants.R_OK)
-          console.log(`${this.resources[t].path} - OK....`)
+          this.debug(`${this.resources[t].path} - OK....`)
         } catch (error) {
-          console.log(`${this.resources[t].path} NOT available...`)
-          console.log(`Creating ${this.resources[t].path} ...`)
+          this.debug(`${this.resources[t].path} NOT available...`)
+          this.debug(`Creating ${this.resources[t].path} ...`)
           try {
             await mkdir(this.resources[t].path, { recursive: true })
-            console.log(`Created ${this.resources[t].path} - OK....`)
+            this.debug(`Created ${this.resources[t].path} - OK....`)
           } catch (error) {
             result.error = true
             result.message += `ERROR creating ${this.resources[t].path} folder\r\n `
@@ -160,7 +160,7 @@ export class FileStore implements IResourceStore {
       // ** delete file **
       try {
         await unlink(p)
-        console.log(`** DELETED: ${r.type} entry ${fname} **`)
+        this.debug(`** DELETED: ${r.type} entry ${fname} **`)
         return
       } catch (error) {
         console.error('Error deleting resource!')
@@ -171,7 +171,7 @@ export class FileStore implements IResourceStore {
       // ** add / update file
       try {
         await writeFile(p, JSON.stringify(r.value))
-        console.log(`** ${r.type} written to ${fname} **`)
+        this.debug(`** ${r.type} written to ${fname} **`)
         return
       } catch (error) {
         console.error('Error updating resource!')
@@ -191,15 +191,15 @@ export class FileStore implements IResourceStore {
         path,
         constants.W_OK | constants.R_OK
       )
-      console.log(`${path} - OK...`)
+      this.debug(`${path} - OK...`)
       return true
     } catch (error) {
       // if not then create it
-      console.log(`${path} does NOT exist...`)
-      console.log(`Creating ${path} ...`)
+      this.debug(`${path} does NOT exist...`)
+      this.debug(`Creating ${path} ...`)
       try {
         await mkdir(path, { recursive: true })
-        console.log(`Created ${path} - OK...`)
+        this.debug(`Created ${path} - OK...`)
         return true
       } catch (error) {
         throw new Error(`Unable to create ${path}!`)
