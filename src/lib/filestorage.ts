@@ -12,6 +12,8 @@ import path from 'path'
 import { IResourceStore, StoreRequestParams } from '../types'
 import { Utils } from './utils'
 
+const getUuid = (skIdentifier: string) => skIdentifier.split(':').slice(-1)[0]
+
 // ** File Resource Store Class
 export class FileStore implements IResourceStore {
   utils: Utils
@@ -88,6 +90,16 @@ export class FileStore implements IResourceStore {
     return result
   }
 
+  async getResource(type: string, itemUuid: string) {
+    const result = JSON.parse(
+      await readFile(path.join(this.resources[type].path, itemUuid), 'utf8')
+    )
+    const stats = await stat(path.join(this.resources[type].path, itemUuid))
+    result.timestamp = stats.mtime
+    result.$source = this.pkg.id
+    return result
+  }
+
   // ** return persisted resources from storage
   async getResources(
     type: string,
@@ -102,15 +114,7 @@ export class FileStore implements IResourceStore {
     }
     try {
       if (item) {
-        // return specified resource
-        item = item.split(':').slice(-1)[0]
-        result = JSON.parse(
-          await readFile(path.join(this.resources[type].path, item), 'utf8')
-        )
-        const stats: any = stat(path.join(this.resources[type].path, item))
-        result.timestamp = stats.mtime
-        result.$source = this.pkg.id
-        return result
+        return this.getResource(type, getUuid(item))
       } else {
         // return matching resources
         const rt = this.resources[type]
@@ -153,7 +157,7 @@ export class FileStore implements IResourceStore {
 
   // ** save / delete (r.value==null) resource file
   async setResource(r: StoreRequestParams): Promise<void> {
-    const fname = r.id.split(':').slice(-1)[0]
+    const fname = getUuid(r.id)
     const p = path.join(this.resources[r.type].path, fname)
 
     if (r.value === null) {
