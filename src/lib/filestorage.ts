@@ -12,7 +12,8 @@ import path from 'path'
 import { IResourceStore, StoreRequestParams } from '../types'
 import { Utils } from './utils'
 
-const getUuid = (skIdentifier: string) => skIdentifier.split(':').slice(-1)[0]
+export const getUuid = (skIdentifier: string) =>
+  skIdentifier.split(':').slice(-1)[0]
 
 // ** File Resource Store Class
 export class FileStore implements IResourceStore {
@@ -90,7 +91,7 @@ export class FileStore implements IResourceStore {
     return result
   }
 
-  async getResource(type: string, itemUuid: string) {
+  async getResource(type: string, itemUuid: string): Promise<object> {
     try {
       const result = JSON.parse(
         await readFile(path.join(this.resources[type].path, itemUuid), 'utf8')
@@ -99,62 +100,54 @@ export class FileStore implements IResourceStore {
       result.timestamp = stats.mtime
       result.$source = this.pkg.id
       return result
-    } catch (e) {
+    } catch (e: any) {
       if (e.code === 'ENOENT') {
-        return {}
+        return Promise.reject(`No such resource ${type} ${itemUuid}`)
       }
       console.error(e)
-      return {}
+      return Promise.reject(`Error retrieving resource ${type} ${itemUuid}`)
     }
   }
 
   // ** return persisted resources from storage
   async getResources(
     type: string,
-    item: any = null,
-    params: any = {}
+    params: any
   ): Promise<{ [key: string]: any }> {
     let result: any = {}
     // ** parse supplied params
     params = this.utils.processParameters(params)
-    if (params.error) {
-      throw new Error(params.error)
-    }
     try {
-      if (item) {
-        return this.getResource(type, getUuid(item))
-      } else {
-        // return matching resources
-        const rt = this.resources[type]
-        const files = await readdir(rt.path)
-        // check resource count
-        const fcount =
-          params.limit && files.length > params.limit
-            ? params.limit
-            : files.length
-        for (const f in files) {
-          if (f >= fcount) {
-            break
-          }
-          const uuid = this.utils.uuidPrefix + files[f]
-          try {
-            const res = JSON.parse(
-              await readFile(path.join(rt.path, files[f]), 'utf8')
-            )
-            // ** apply param filters **
-            if (this.utils.passFilter(res, type, params)) {
-              result[uuid] = res
-              const stats: any = stat(path.join(rt.path, files[f]))
-              result[uuid].timestamp = stats.mtime
-              result[uuid].$source = this.pkg.id
-            }
-          } catch (err) {
-            console.error(err)
-            throw new Error(`Invalid file contents: ${files[f]}`)
-          }
+      // return matching resources
+      const rt = this.resources[type]
+      const files = await readdir(rt.path)
+      // check resource count
+      const fcount =
+        params.limit && files.length > params.limit
+          ? params.limit
+          : files.length
+      for (const f in files) {
+        if (f >= fcount) {
+          break
         }
-        return result
+        const uuid = this.utils.uuidPrefix + files[f]
+        try {
+          const res = JSON.parse(
+            await readFile(path.join(rt.path, files[f]), 'utf8')
+          )
+          // ** apply param filters **
+          if (this.utils.passFilter(res, type, params)) {
+            result[uuid] = res
+            const stats: any = stat(path.join(rt.path, files[f]))
+            result[uuid].timestamp = stats.mtime
+            result[uuid].$source = this.pkg.id
+          }
+        } catch (err) {
+          console.error(err)
+          throw new Error(`Invalid file contents: ${files[f]}`)
+        }
       }
+      return result
     } catch (error) {
       console.error(error)
       throw new Error(

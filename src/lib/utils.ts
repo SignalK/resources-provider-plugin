@@ -114,13 +114,9 @@ export class Utils {
   processParameters(params: any) {
     if (typeof params.limit !== 'undefined') {
       if (isNaN(params.limit)) {
-        const s = `Error: max record count specified is not a number! (${params.limit})`
-        console.error(`*** ${s} ***`)
-        return {
-          error: true,
-          message: s,
-          source: 'resources'
-        }
+        throw new Error(
+          `max record count specified is not a number! (${params.limit})`
+        )
       } else {
         params.limit = parseInt(params.limit)
       }
@@ -131,21 +127,15 @@ export class Utils {
       params.geobounds = this.toPolygon(params.bbox)
       if (params.geobounds.length !== 5) {
         params.geobounds = null
-        return {
-          error: true,
-          message: `Error: Bounding box contains invalid coordinate value (${params.bbox})`,
-          source: 'resources'
-        }
+        throw new Error(
+          `Bounding box contains invalid coordinate value (${params.bbox})`
+        )
       }
     } else if (typeof params.distance !== 'undefined' && params.position) {
       if (isNaN(params.distance)) {
-        const s = `Error: Distance specified is not a number! (${params.distance})`
-        console.error(`*** ${s} ***`)
-        return {
-          error: true,
-          message: s,
-          source: 'resources'
-        }
+        throw new Error(
+          `Distance specified is not a number! (${params.distance})`
+        )
       }
       const sw = computeDestinationPoint(params.position, params.distance, 225)
       const ne = computeDestinationPoint(params.position, params.distance, 45)

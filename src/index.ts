@@ -1,36 +1,16 @@
 import {
   Plugin,
-  PluginServerApp
-  // ResourceType, ResourceProvider
+  PluginServerApp,
+  ResourceProviderRegistry
 } from '@signalk/server-api'
 // ***********************************************
-import { FileStore } from './lib/filestorage'
+import { FileStore, getUuid } from './lib/filestorage'
 import { Utils } from './lib/utils'
 import { StoreRequestParams } from './types'
 
-// ******  duplicate of '@signalk/server-api' until new version published ****
-type SignalKResourceType =
-  | 'routes'
-  | 'waypoints'
-  | 'notes'
-  | 'regions'
-  | 'charts'
-
-export type ResourceType = SignalKResourceType | string
-
-export interface ResourceProvider {
-  type: ResourceType
-  methods: ResourceProviderMethods
-}
-
-export interface ResourceProviderMethods {
-  listResources: (query: { [key: string]: any }) => Promise<any>
-  getResource: (id: string) => Promise<any>
-  setResource: (id: string, value: { [key: string]: any }) => Promise<any>
-  deleteResource: (id: string) => Promise<any>
-}
-
-interface ResourceProviderApp extends PluginServerApp {
+interface ResourceProviderApp
+  extends PluginServerApp,
+    ResourceProviderRegistry {
   statusMessage?: () => string
   error: (msg: string) => void
   debug: (msg: string) => void
@@ -41,7 +21,6 @@ interface ResourceProviderApp extends PluginServerApp {
   getSelfPath: (path: string) => void
   savePluginOptions: (options: any, callback: () => void) => void
   config: { configPath: string }
-  registerResourceProvider: (resourceProvider: ResourceProvider) => void
 }
 
 const CONFIG_SCHEMA = {
@@ -251,10 +230,10 @@ module.exports = (server: ResourceProviderApp): Plugin => {
           type: resType,
           methods: {
             listResources: (params: object): any => {
-              return apiGetResource(resType, '', params)
+              return apiGetResources(resType, params)
             },
             getResource: (id: string) => {
-              return apiGetResource(resType, id)
+              return db.getResource(resType, getUuid(id))
             },
             setResource: (id: string, value: any) => {
               return apiSetResource(resType, id, value)
@@ -273,28 +252,15 @@ module.exports = (server: ResourceProviderApp): Plugin => {
 
   // ******* Signal K server Resource Provider interface functions **************
 
-  const apiGetResource = async (
+  const apiGetResources = async (
     resType: string,
-    id: string,
     params?: any
-  ): Promise<{ [key: string]: any }> => {
+  ): Promise<any> => {
     // append vessel position to params
     params = params ?? {}
     params.position = getVesselPosition()
-    server.debug(
-      `*** apiGetResource:  ${resType}, ${id}, ${JSON.stringify(params)}`
-    )
-    try {
-      if (!id) {
-        // retrieve resource list
-        return await db.getResources(resType, null, params)
-      } else {
-        // retrieve resource entry
-        return await db.getResources(resType, id)
-      }
-    } catch (error) {
-      throw error
-    }
+    server.debug(`*** apiGetResource:  ${resType}, ${JSON.stringify(params)}`)
+    return await db.getResources(resType, params)
   }
 
   const apiSetResource = async (
