@@ -91,13 +91,21 @@ export class FileStore implements IResourceStore {
   }
 
   async getResource(type: string, itemUuid: string) {
-    const result = JSON.parse(
-      await readFile(path.join(this.resources[type].path, itemUuid), 'utf8')
-    )
-    const stats = await stat(path.join(this.resources[type].path, itemUuid))
-    result.timestamp = stats.mtime
-    result.$source = this.pkg.id
-    return result
+    try {
+      const result = JSON.parse(
+        await readFile(path.join(this.resources[type].path, itemUuid), 'utf8')
+      )
+      const stats = await stat(path.join(this.resources[type].path, itemUuid))
+      result.timestamp = stats.mtime
+      result.$source = this.pkg.id
+      return result
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        return {}
+      }
+      console.error(e)
+      return {}
+    }
   }
 
   // ** return persisted resources from storage
