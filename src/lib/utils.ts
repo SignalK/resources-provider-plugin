@@ -65,14 +65,14 @@ export class Utils {
    * returns: true if entry should be included in results **/
   passFilter(res: any, type: string, params: any) {
     let ok = true
-    if (params.region) {
-      // ** check is attached to region
-      // console.log(`check region: ${params.region}`);
-      if (typeof res.region === 'undefined') {
+    if (params.href) {
+      // ** check is attached to another resource
+      // console.log(`filter related href: ${params.href}`);
+      if (typeof res.href === 'undefined') {
         ok = ok && false
       } else {
-        // deconstruct resource region value
-        const ha = res.region.split('/')
+        // deconstruct resource href value
+        const ha = res.href.split('/')
         const hType: string =
           ha.length === 1
             ? 'regions'
@@ -81,8 +81,8 @@ export class Utils {
             : 'regions'
         const hId = ha.length === 1 ? ha[0] : ha[ha.length - 1]
 
-        // deconstruct param.region value
-        const pa = params.region.split('/')
+        // deconstruct param.href value
+        const pa = params.href.split('/')
         const pType: string =
           pa.length === 1
             ? 'regions'
