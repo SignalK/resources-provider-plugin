@@ -161,15 +161,11 @@ export class Utils {
     const polygon = []
     const b = bbox
       .split(',')
-      .map((i: any) => {
-        if (!isNaN(i)) {
-          return parseFloat(i)
-        }
-      })
       .filter((i: any) => {
-        if (i) {
-          return i
-        }
+        return !isNaN(i) && !isNaN(parseFloat(i))
+      })
+      .map((i: any) => {
+        return parseFloat(i)
       })
     if (b.length == 4) {
       polygon.push([b[0], b[1]])
