@@ -10,20 +10,18 @@ import {
 } from 'fs/promises'
 import path from 'path'
 import { IResourceStore, StoreRequestParams } from '../types'
-import { Utils } from './utils'
+import { passFilter, processParameters, UUID_PREFIX } from './utils'
 
 export const getUuid = (skIdentifier: string) =>
   skIdentifier.split(':').slice(-1)[0]
 
 // ** File Resource Store Class
 export class FileStore implements IResourceStore {
-  utils: Utils
   savePath: string
   resources: any
   pkg: { id: string }
 
   constructor(pluginId: string, private debug: (s: any) => void) {
-    this.utils = new Utils()
     this.savePath = ''
     this.resources = {}
     this.pkg = { id: pluginId }
@@ -116,7 +114,7 @@ export class FileStore implements IResourceStore {
   ): Promise<{ [key: string]: any }> {
     let result: any = {}
     // ** parse supplied params
-    params = this.utils.processParameters(params)
+    params = processParameters(params)
     try {
       // return matching resources
       const rt = this.resources[type]
@@ -130,13 +128,13 @@ export class FileStore implements IResourceStore {
         if (f >= fcount) {
           break
         }
-        const uuid = this.utils.uuidPrefix + files[f]
+        const uuid = UUID_PREFIX + files[f]
         try {
           const res = JSON.parse(
             await readFile(path.join(rt.path, files[f]), 'utf8')
           )
           // ** apply param filters **
-          if (this.utils.passFilter(res, type, params)) {
+          if (passFilter(res, type, params)) {
             result[uuid] = res
             const stats: any = stat(path.join(rt.path, files[f]))
             result[uuid].timestamp = stats.mtime

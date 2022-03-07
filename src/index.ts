@@ -5,7 +5,6 @@ import {
 } from '@signalk/server-api'
 // ***********************************************
 import { FileStore, getUuid } from './lib/filestorage'
-import { Utils } from './lib/utils'
 import { StoreRequestParams } from './types'
 
 interface ResourceProviderApp
@@ -105,7 +104,6 @@ const CONFIG_UISCHEMA = {
 
 module.exports = (server: ResourceProviderApp): Plugin => {
   let subscriptions: any[] = [] // stream subscriptions
-  const utils: Utils = new Utils()
 
   const plugin: Plugin = {
     id: 'resources-provider',
