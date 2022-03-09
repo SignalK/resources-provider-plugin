@@ -10,17 +10,18 @@ import {
 } from 'fs/promises'
 import path from 'path'
 import { IResourceStore, StoreRequestParams } from '../types'
-import { Utils } from './utils'
+import { passFilter, processParameters, UUID_PREFIX } from './utils'
+
+export const getUuid = (skIdentifier: string) =>
+  skIdentifier.split(':').slice(-1)[0]
 
 // ** File Resource Store Class
 export class FileStore implements IResourceStore {
-  utils: Utils
   savePath: string
   resources: any
   pkg: { id: string }
 
-  constructor(pluginId = '') {
-    this.utils = new Utils()
+  constructor(pluginId: string, private debug: (s: any) => void) {
     this.savePath = ''
     this.resources = {}
     this.pkg = { id: pluginId }
@@ -44,10 +45,7 @@ export class FileStore implements IResourceStore {
     // other resources
     const enabledResTypes: any = {}
     Object.assign(enabledResTypes, config.settings.standard)
-    if (
-      config.settings.custom &&
-      Array.isArray(config.settings.custom)
-    ) {
+    if (config.settings.custom && Array.isArray(config.settings.custom)) {
       config.settings.custom.forEach((i: any) => {
         this.resources[i.name] = {
           path: path.join(this.savePath, `/${i.name}`)
@@ -68,19 +66,19 @@ export class FileStore implements IResourceStore {
   async createSavePaths(
     resTypes: any
   ): Promise<{ error: boolean; message: string }> {
-    console.log('** Initialising resource storage **')
+    this.debug('** Initialising resource storage **')
     const result = { error: false, message: `` }
-    Object.keys(this.resources).forEach(async (t:string) => {
+    Object.keys(this.resources).forEach(async (t: string) => {
       if (resTypes[t]) {
         try {
           await access(this.resources[t].path, constants.W_OK | constants.R_OK)
-          console.log(`${this.resources[t].path} - OK....`)
+          this.debug(`${this.resources[t].path} - OK....`)
         } catch (error) {
-          console.log(`${this.resources[t].path} NOT available...`)
-          console.log(`Creating ${this.resources[t].path} ...`)
+          this.debug(`${this.resources[t].path} NOT available...`)
+          this.debug(`Creating ${this.resources[t].path} ...`)
           try {
             await mkdir(this.resources[t].path, { recursive: true })
-            console.log(`Created ${this.resources[t].path} - OK....`)
+            this.debug(`Created ${this.resources[t].path} - OK....`)
           } catch (error) {
             result.error = true
             result.message += `ERROR creating ${this.resources[t].path} folder\r\n `
@@ -91,61 +89,63 @@ export class FileStore implements IResourceStore {
     return result
   }
 
+  async getResource(type: string, itemUuid: string): Promise<object> {
+    try {
+      const result = JSON.parse(
+        await readFile(path.join(this.resources[type].path, itemUuid), 'utf8')
+      )
+      const stats = await stat(path.join(this.resources[type].path, itemUuid))
+      result.timestamp = stats.mtime
+      result.$source = this.pkg.id
+      return result
+    } catch (e: any) {
+      if (e.code === 'ENOENT') {
+        return Promise.reject(`No such resource ${type} ${itemUuid}`)
+      }
+      console.error(e)
+      return Promise.reject(`Error retrieving resource ${type} ${itemUuid}`)
+    }
+  }
+
   // ** return persisted resources from storage
   async getResources(
     type: string,
-    item: any = null,
-    params: any = {}
+    params: any
   ): Promise<{ [key: string]: any }> {
     let result: any = {}
     // ** parse supplied params
-    params = this.utils.processParameters(params)
-    if (params.error) {
-      throw new Error(params.error)
-    }
+    params = processParameters(params)
     try {
-      if (item) {
-        // return specified resource
-        item = item.split(':').slice(-1)[0]
-        result = JSON.parse(
-          await readFile(path.join(this.resources[type].path, item), 'utf8')
-        )
-        const stats: any = stat(path.join(this.resources[type].path, item))
-        result.timestamp = stats.mtime
-        result.$source = this.pkg.id
-        return result
-      } else {
-        // return matching resources
-        const rt = this.resources[type]
-        const files = await readdir(rt.path)
-        // check resource count
-        const fcount =
-          params.limit && files.length > params.limit
-            ? params.limit
-            : files.length
-        for (const f in files) {
-          if (f >= fcount) {
-            break
-          }
-          const uuid = this.utils.uuidPrefix + files[f]
-          try {
-            const res = JSON.parse(
-              await readFile(path.join(rt.path, files[f]), 'utf8')
-            )
-            // ** apply param filters **
-            if (this.utils.passFilter(res, type, params)) {
-              result[uuid] = res
-              const stats: any = stat(path.join(rt.path, files[f]))
-              result[uuid].timestamp = stats.mtime
-              result[uuid].$source = this.pkg.id
-            }
-          } catch (err) {
-            console.error(err)
-            throw new Error(`Invalid file contents: ${files[f]}`)
-          }
+      // return matching resources
+      const rt = this.resources[type]
+      const files = await readdir(rt.path)
+      // check resource count
+      const fcount =
+        params.limit && files.length > params.limit
+          ? params.limit
+          : files.length
+      for (const f in files) {
+        if (f >= fcount) {
+          break
         }
-        return result
+        const uuid = UUID_PREFIX + files[f]
+        try {
+          const res = JSON.parse(
+            await readFile(path.join(rt.path, files[f]), 'utf8')
+          )
+          // ** apply param filters **
+          if (passFilter(res, type, params)) {
+            result[uuid] = res
+            const stats: any = stat(path.join(rt.path, files[f]))
+            result[uuid].timestamp = stats.mtime
+            result[uuid].$source = this.pkg.id
+          }
+        } catch (err) {
+          console.error(err)
+          throw new Error(`Invalid file contents: ${files[f]}`)
+        }
       }
+      return result
     } catch (error) {
       console.error(error)
       throw new Error(
@@ -156,25 +156,25 @@ export class FileStore implements IResourceStore {
 
   // ** save / delete (r.value==null) resource file
   async setResource(r: StoreRequestParams): Promise<void> {
-    const fname = r.id.split(':').slice(-1)[0]
+    const fname = getUuid(r.id)
     const p = path.join(this.resources[r.type].path, fname)
 
     if (r.value === null) {
       // ** delete file **
       try {
         await unlink(p)
-        console.log(`** DELETED: ${r.type} entry ${fname} **`)
+        this.debug(`** DELETED: ${r.type} entry ${fname} **`)
         return
       } catch (error) {
-        console.error('Error deleting resource!');
-        (error as Error).message = 'Error deleting resource!'
+        console.error('Error deleting resource!')
+        ;(error as Error).message = 'Error deleting resource!'
         throw error
       }
     } else {
       // ** add / update file
       try {
         await writeFile(p, JSON.stringify(r.value))
-        console.log(`** ${r.type} written to ${fname} **`)
+        this.debug(`** ${r.type} written to ${fname} **`)
         return
       } catch (error) {
         console.error('Error updating resource!')
@@ -194,15 +194,15 @@ export class FileStore implements IResourceStore {
         path,
         constants.W_OK | constants.R_OK
       )
-      console.log(`${path} - OK...`)
+      this.debug(`${path} - OK...`)
       return true
     } catch (error) {
       // if not then create it
-      console.log(`${path} does NOT exist...`)
-      console.log(`Creating ${path} ...`)
+      this.debug(`${path} does NOT exist...`)
+      this.debug(`Creating ${path} ...`)
       try {
         await mkdir(path, { recursive: true })
-        console.log(`Created ${path} - OK...`)
+        this.debug(`Created ${path} - OK...`)
         return true
       } catch (error) {
         throw new Error(`Unable to create ${path}!`)
