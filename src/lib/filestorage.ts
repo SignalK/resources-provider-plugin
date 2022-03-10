@@ -129,13 +129,13 @@ export class FileStore implements IResourceStore {
         if (++count > fcount) {
           break
         }
-        const uuid = UUID_PREFIX + files[f]
         try {
           const res = JSON.parse(
             await readFile(path.join(rt.path, files[f]), 'utf8')
           )
           // ** apply param filters **
           if (passFilter(res, type, params)) {
+            const uuid = UUID_PREFIX + files[f]
             result[uuid] = res
             const stats: any = stat(path.join(rt.path, files[f]))
             result[uuid].timestamp = stats.mtime
