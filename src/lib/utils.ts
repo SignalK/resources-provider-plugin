@@ -19,6 +19,9 @@ export const inBounds = (
   switch (type) {
     case 'notes':
     case 'waypoints':
+      if (val?.feature?.geometry?.coordinates) {
+        ok = isPointInPolygon(val?.feature?.geometry?.coordinates, polygon)
+      }
       if (val.position) {
         ok = isPointInPolygon(val.position, polygon)
       }
