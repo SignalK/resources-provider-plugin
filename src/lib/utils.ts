@@ -27,7 +27,7 @@ export const inBounds = (
       }
       if (val.geohash) {
         const bar = ngeohash.decode_bbox(val.geohash)
-        const bounds = toPolygon(`${bar[1]},${bar[0]}, ${bar[3]}, ${bar[2]}`)
+        const bounds = toPolygon([bar[1], bar[0], bar[3], bar[2]])
         const center = getCenterOfBounds(bounds)
         ok = isPointInPolygon(center, polygon)
       }
@@ -144,29 +144,21 @@ export const processParameters = (params: any) => {
     const sw = computeDestinationPoint(params.position, params.distance, 225)
     const ne = computeDestinationPoint(params.position, params.distance, 45)
     params.geobounds = toPolygon(
-      `${sw.longitude},${sw.latitude}, ${ne.longitude}, ${ne.latitude}`
+      [sw.longitude, sw.latitude, ne.longitude, ne.latitude]
     )
   }
   return params
 }
 
 // ** convert bbox  string to array of points (polygon) **
-export const toPolygon = (bbox: string) => {
+export const toPolygon = (bbox: number[]) => {
   const polygon = []
-  const b = bbox
-    .split(',')
-    .filter((i: any) => {
-      return !isNaN(i) && !isNaN(parseFloat(i))
-    })
-    .map((i: any) => {
-      return parseFloat(i)
-    })
-  if (b.length == 4) {
-    polygon.push([b[0], b[1]])
-    polygon.push([b[0], b[3]])
-    polygon.push([b[2], b[3]])
-    polygon.push([b[2], b[1]])
-    polygon.push([b[0], b[1]])
+  if (bbox.length == 4) {
+    polygon.push([bbox[0], bbox[1]])
+    polygon.push([bbox[0], bbox[3]])
+    polygon.push([bbox[2], bbox[3]])
+    polygon.push([bbox[2], bbox[1]])
+    polygon.push([bbox[0], bbox[1]])
   } else {
     console.error(
       `*** Error: Bounding box contains invalid coordinate value (${bbox}) ***`
