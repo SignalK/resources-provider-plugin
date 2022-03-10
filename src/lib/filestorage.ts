@@ -124,8 +124,9 @@ export class FileStore implements IResourceStore {
         params.limit && files.length > params.limit
           ? params.limit
           : files.length
+      let count = 0
       for (const f in files) {
-        if (f >= fcount) {
+        if (++count > fcount) {
           break
         }
         const uuid = UUID_PREFIX + files[f]
