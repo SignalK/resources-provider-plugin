@@ -254,9 +254,9 @@ module.exports = (server: ResourceProviderApp): Plugin => {
     resType: string,
     params?: any
   ): Promise<any> => {
-    // append vessel position to params
-    params = params ?? {}
-    params.position = getVesselPosition()
+    if (typeof params.position === 'undefined') {
+      params.position = getVesselPosition()
+    }
     server.debug(`*** apiGetResource:  ${resType}, ${JSON.stringify(params)}`)
     return await db.getResources(resType, params)
   }
