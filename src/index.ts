@@ -1,15 +1,42 @@
 import {
   Plugin,
-  PluginServerApp,
-  ResourceProviderRegistry
+  PluginServerApp
+  // ResourceProvider
 } from '@signalk/server-api'
+
+// ******  duplicate of '@signalk/server-api' until new version published ****
+type SignalKResourceType =
+  | 'routes'
+  | 'waypoints'
+  | 'notes'
+  | 'regions'
+  | 'charts'
+
+export type ResourceType = SignalKResourceType | string
+
+export interface ResourceProvider {
+  type: ResourceType
+  methods: ResourceProviderMethods
+}
+
+export interface ResourceProviderMethods {
+  listResources: (query: { [key: string]: any }) => Promise<any>
+  getResource: (id: string) => Promise<any>
+  setResource: (
+    id: string,
+    value: { [key: string]: any }
+  ) => Promise<any>
+  deleteResource: (id: string) => Promise<any>
+}
+
 // ***********************************************
+
 import { FileStore, getUuid } from './lib/filestorage'
 import { StoreRequestParams } from './types'
 
 interface ResourceProviderApp
-  extends PluginServerApp,
-    ResourceProviderRegistry {
+  extends PluginServerApp {
+    //ResourceProviderRegistry {
   statusMessage?: () => string
   error: (msg: string) => void
   debug: (msg: string) => void
@@ -20,6 +47,7 @@ interface ResourceProviderApp
   getSelfPath: (path: string) => void
   savePluginOptions: (options: any, callback: () => void) => void
   config: { configPath: string }
+  registerResourceProvider: (resourceProvider: ResourceProvider) => void
 }
 
 const CONFIG_SCHEMA = {
@@ -254,9 +282,9 @@ module.exports = (server: ResourceProviderApp): Plugin => {
     resType: string,
     params?: any
   ): Promise<any> => {
-    // append vessel position to params
-    params = params ?? {}
-    params.position = getVesselPosition()
+    if (typeof params.position === 'undefined') {
+      params.position = getVesselPosition()
+    }
     server.debug(`*** apiGetResource:  ${resType}, ${JSON.stringify(params)}`)
     return await db.getResources(resType, params)
   }
