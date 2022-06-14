@@ -18,18 +18,13 @@ export const inBounds = (
   let ok = false
   switch (type) {
     case 'notes':
-    case 'waypoints':
-      if (val?.feature?.geometry?.coordinates) {
-        ok = isPointInPolygon(val?.feature?.geometry?.coordinates, polygon)
-      }
       if (val.position) {
         ok = isPointInPolygon(val.position, polygon)
       }
-      if (val.geohash) {
-        const bar = ngeohash.decode_bbox(val.geohash)
-        const bounds = toPolygon([bar[1], bar[0], bar[3], bar[2]])
-        const center = getCenterOfBounds(bounds)
-        ok = isPointInPolygon(center, polygon)
+      break
+    case 'waypoints':
+      if (val?.feature?.geometry?.coordinates) {
+        ok = isPointInPolygon(val?.feature?.geometry?.coordinates, polygon)
       }
       break
     case 'routes':
@@ -71,8 +66,7 @@ export const passFilter = (res: any, type: string, params: any) => {
   let ok = true
   if (params.href) {
     // ** check is attached to another resource
-    // console.log(`filter related href: ${params.href}`);
-    if (typeof res.href === 'undefined') {
+    if (!res.href) {
       ok = ok && false
     } else {
       // deconstruct resource href value
