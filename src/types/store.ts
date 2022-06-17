@@ -1,4 +1,4 @@
-// ** Resource Store Interface
+// Resource Store Interface
 export interface IResourceStore {
   savePath: string
   resources: any

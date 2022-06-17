@@ -22,10 +22,7 @@ export interface ResourceProvider {
 export interface ResourceProviderMethods {
   listResources: (query: { [key: string]: any }) => Promise<any>
   getResource: (id: string) => Promise<any>
-  setResource: (
-    id: string,
-    value: { [key: string]: any }
-  ) => Promise<any>
+  setResource: (id: string, value: { [key: string]: any }) => Promise<any>
   deleteResource: (id: string) => Promise<any>
 }
 
@@ -34,9 +31,8 @@ export interface ResourceProviderMethods {
 import { FileStore, getUuid } from './lib/filestorage'
 import { StoreRequestParams } from './types'
 
-interface ResourceProviderApp
-  extends PluginServerApp {
-    //ResourceProviderRegistry {
+interface ResourceProviderApp extends PluginServerApp {
+  //ResourceProviderRegistry {
   statusMessage?: () => string
   error: (msg: string) => void
   debug: (msg: string) => void
@@ -191,7 +187,7 @@ module.exports = (server: ResourceProviderApp): Plugin => {
         `** Enabled resource types: ${JSON.stringify(apiProviderFor)}`
       )
 
-      // ** initialise resource storage
+      // initialise resource storage
       db.init({ settings: config, path: server.config.configPath })
         .then((res: { error: boolean; message: string }) => {
           if (res.error) {
