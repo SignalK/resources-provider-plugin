@@ -2,10 +2,8 @@
 
 import {
   computeDestinationPoint,
-  getCenterOfBounds,
   isPointInPolygon
 } from 'geolib'
-import ngeohash from 'ngeohash'
 
 export const UUID_PREFIX = 'urn:mrn:signalk:uuid:'
 
